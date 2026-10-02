@@ -165,6 +165,7 @@ install -m 0644 "$repo/config/forge-portals.conf" "$target/usr/share/xdg-desktop
 install -m 0644 "$repo/config/mirrorlist" "$target/usr/share/forge-os/mirrorlist"
 install -m 0644 "$repo/config/forge-dr460nized.fish" "$target/usr/share/forge-os/forge-dr460nized.fish"
 install -m 0644 "$repo/config/forge-starship.toml" "$target/usr/share/forge-os/forge-starship.toml"
+install -m 0644 "$repo/config/forge-hermes.env" "$target/usr/share/forge-os/forge-hermes.env"
 
 for desktop in forge-app-launcher.desktop forge-explorer.desktop forge-system-settings.desktop forge-workspace-runner.desktop forge-install-program.desktop forge-panel-manager.desktop; do
   install -m 0644 "$repo/session/$desktop" "$target/usr/share/applications/$desktop"

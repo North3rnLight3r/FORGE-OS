@@ -43,6 +43,8 @@ jobs:
           ref: ${{ steps.inputs.outputs.forge_ref }}
           path: FORGE
           token: ${{ secrets.FORGE_REPO_TOKEN }}
+      - name: Verify exact FORGE source and overlay contract
+        run: FORGE_SOURCE="$GITHUB_WORKSPACE/FORGE" bash ./FORGE-OS/tests/hermes-runtime-contract.sh
       - name: Build fresh ISO in Arch container
         shell: bash
         run: |

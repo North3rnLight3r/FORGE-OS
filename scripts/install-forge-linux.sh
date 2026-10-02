@@ -116,6 +116,7 @@ sudo install -o root -g root -m 0644 "$root/config/forge-portals.conf" /usr/shar
 sudo install -o root -g root -m 0644 "$root/config/mirrorlist" /usr/share/forge-os/mirrorlist
 sudo install -o root -g root -m 0644 "$root/config/forge-dr460nized.fish" /usr/share/forge-os/forge-dr460nized.fish
 sudo install -o root -g root -m 0644 "$root/config/forge-starship.toml" /usr/share/forge-os/forge-starship.toml
+sudo install -o root -g root -m 0644 "$root/config/forge-hermes.env" /usr/share/forge-os/forge-hermes.env
 
 for desktop in forge-app-launcher.desktop forge-explorer.desktop forge-system-settings.desktop forge-workspace-runner.desktop forge-install-program.desktop forge-panel-manager.desktop; do
   sudo install -o root -g root -m 0644 "$root/session/$desktop" "/usr/share/applications/$desktop"
@@ -172,6 +173,7 @@ for pair in \
   "$root/scripts/forge-install-pkg:/usr/local/bin/forge-install-pkg" \
   "$root/config/greetd-config.toml:/etc/greetd/config.toml" \
   "$root/config/reflector.conf:/etc/xdg/reflector/reflector.conf" \
+  "$root/config/forge-hermes.env:/usr/share/forge-os/forge-hermes.env" \
   "$root/session/forge.desktop:/usr/share/forge-os/wayland-sessions/forge.desktop" \
   "$root/config/forge-recovery.service:/etc/systemd/system/forge-recovery.service"; do
   sudo cmp -s "${pair%%:*}" "${pair#*:}" || { echo "Installed file mismatch: ${pair#*:}" >&2; exit 1; }

@@ -184,13 +184,14 @@ install -m 0644 "$root/config/forge-recovery.service" "$profile/airootfs/etc/sys
 install -m 0644 "$root/config/forge-live-setup.service" "$profile/airootfs/etc/systemd/system/forge-live-setup.service"
 install -m 0644 "$root/config/forge-dr460nized.fish" "$profile/airootfs/usr/share/forge-os/forge-dr460nized.fish"
 install -m 0644 "$root/config/forge-starship.toml" "$profile/airootfs/usr/share/forge-os/forge-starship.toml"
+install -m 0644 "$root/config/forge-hermes.env" "$profile/airootfs/usr/share/forge-os/forge-hermes.env"
 install -m 0644 "$root/config/mirrorlist" "$profile/airootfs/usr/share/forge-os/mirrorlist"
 printf '[Unit]\nRequires=forge-live-setup.service\nAfter=forge-live-setup.service\n' >"$profile/airootfs/etc/systemd/system/greetd.service.d/forge-live.conf"
 printf '[Unit]\nRequires=forge-live-setup.service\nAfter=forge-live-setup.service\n' >"$profile/airootfs/etc/systemd/system/forge-recovery.service.d/live.conf"
 install -m 0644 "$record" "$release/.forge-runtime.env"
 install -m 0644 "$root/VERSION" "$profile/airootfs/etc/forge-os-version"
 sed -e "s/@VERSION@/$(<"$root/VERSION")/g" -e "s/@SOURCE_COMMIT@/${FORGE_SOURCE_COMMIT:0:12}/g" "$root/config/issue" >"$profile/airootfs/etc/issue"
-git -C "$root" archive HEAD | tar -x -C "$profile/airootfs/opt/forge-os"
+git -C "$root" archive HEAD | tar --warning=no-timestamp -x -C "$profile/airootfs/opt/forge-os"
 record_overlay_executable_permissions
 
 sed -i 's/^iso_name=.*/iso_name="forge-os"/' "$profile/profiledef.sh"

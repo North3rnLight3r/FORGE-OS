@@ -109,9 +109,11 @@ checkpoint_marker="$temporary/checkpointed"
 create_fixture FORGE "$forge_url"
 create_fixture FORGE-OS "$os_url"
 
-touch "$forge/dirty-untracked"
+git -C "$forge_os" switch --detach --quiet HEAD
+touch "$forge_os/dirty-untracked"
 expect_failure 65 env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update"
-rm "$forge/dirty-untracked"
+[[ "$(git -C "$forge_os" branch --show-current)" == main ]] || { echo 'Updater did not safely re-attach a detached checkout at its local main commit.' >&2; exit 1; }
+rm "$forge_os/dirty-untracked"
 
 git -C "$forge" config remote.origin.url 'https://untrusted.invalid/FORGE.git'
 expect_failure 65 env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update"

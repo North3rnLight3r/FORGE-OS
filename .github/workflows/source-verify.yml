@@ -59,6 +59,9 @@ jobs:
           set -euo pipefail
           test "$(git -C FORGE rev-parse HEAD)" = "${{ steps.forge-ref.outputs.sha }}"
 
+      - name: Verify FORGE overlay and native Ollama Hermes contract
+        run: FORGE_SOURCE="$GITHUB_WORKSPACE/FORGE" bash ./FORGE-OS/tests/hermes-runtime-contract.sh
+
       - name: Build canonical tuigreet 0.11.0
         run: |
           git clone --branch 0.11.0 --depth 1 https://github.com/tuigreet/tuigreet.git /tmp/tuigreet

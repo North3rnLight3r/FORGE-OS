@@ -134,6 +134,12 @@ Run `./scripts/clean-build.sh` before a release ISO build. It removes only gener
 
 The ISO reports both versions (`/etc/forge-os-version` and the bundled FORGE runtime metadata). Ollama embeddings use the local loopback API when available and degrade to lexical context when offline. Linux may use Hermes ACP; macOS and Windows use their supported headless bridge while retaining FORGE context, audit, cancellation, and ToolRouter ownership.
 
+### Native Ollama/Hermes runtime
+
+FORGE-OS installs `config/forge-hermes.env` as `/usr/share/forge-os/forge-hermes.env` and sources it before the Wayland session starts. By default it selects the native FORGE agent through the Ollama OpenAI-compatible endpoint `http://127.0.0.1:11434/v1` and uses `llama3.2:3b`; set `FORGE_OLLAMA_MODEL` in the session environment to choose another installed Ollama model. A saved FORGE setting remains authoritative over these defaults. The endpoint-only path is labeled Hermes for runtime selection, but FORGE's native ToolRouter, workspace scope, policy checks, audit trail, and cancellation remain the authority; no external Hermes process receives direct filesystem or shell access.
+
+The pinned `FORGE_REF` is a full FORGE commit SHA. `build-forge.sh`, the installer, the ISO builder, and `tests/hermes-runtime-contract.sh` all verify that exact source and apply the zero-fuzz compatibility overlay before packaging. The updater safely re-attaches a detached checkout only when it is exactly at that checkout's local `main` commit; otherwise it stops and reports the divergence instead of building from an ambiguous HEAD.
+
 The source workflow pins the FORGE checkout through `FORGE_REF`, builds canonical tuigreet 0.11.0, validates greeter/setup/maintenance contracts, verifies that provider schemas omit runtime-only tool metadata, and then runs the complete FORGE typecheck, lint, tests, production build, package resolution, shell/TOML/unit checks, and source contract. The pinned shared runtime applies the same tool schema, policy, and audit behavior to FORGE-OS/Linux, macOS, and Windows packages.
 
 A separate GitHub Actions test-ISO workflow is allowed to publish only after that source workflow succeeds for `main`. The resulting GitHub release is a **prerelease**, never a stable release, and contains one versioned x86_64 ISO plus its checksum.

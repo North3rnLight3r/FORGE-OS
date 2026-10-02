@@ -12,9 +12,24 @@ expected_origins=(
   'https://github.com/North3rnLight3r/FORGE-OS'
 )
 
+attach_main_if_safe() {
+  local repository="$1" current head main_head
+  current="$(git -C "$repository" branch --show-current)"
+  [[ "$current" == main ]] && return 0
+  [[ -z "$current" ]] || return 1
+  head="$(git -C "$repository" rev-parse HEAD)"
+  main_head="$(git -C "$repository" rev-parse refs/heads/main 2>/dev/null || true)"
+  [[ -n "$main_head" && "$head" == "$main_head" ]] || return 1
+  git -C "$repository" switch main >/dev/null
+}
+
 for index in "${!repositories[@]}"; do
   repository="${repositories[$index]}"
   [[ -d "$repository/.git" ]] || { echo "Required Git checkout is missing: $repository" >&2; exit 66; }
+  if ! attach_main_if_safe "$repository"; then
+    echo "Update checkout must be on main (or safely attached to its local main commit): $repository" >&2
+    exit 65
+  fi
   [[ "$(git -C "$repository" branch --show-current)" == main ]] || { echo "Update checkout must be on main: $repository" >&2; exit 65; }
   [[ -z "$(git -C "$repository" status --porcelain -- . ':(exclude).obsidian/**')" ]] || { echo "Update checkout has source changes outside .obsidian: $repository" >&2; exit 65; }
   origin="$(git -C "$repository" config --get remote.origin.url)"

@@ -17,6 +17,9 @@ export FORGE_RUNTIME_CHAIN="${FORGE_RUNTIME_CHAIN:-startplasma-wayland forge-way
 export QT_QPA_PLATFORM='wayland;xcb'
 export KDE_FULL_SESSION=true
 export KDE_SESSION_VERSION=6
+hermes_env=/usr/share/forge-os/forge-hermes.env
+[[ -r "$hermes_env" ]] || hermes_env="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config/forge-hermes.env"
+[[ -r "$hermes_env" ]] && source "$hermes_env"
 forge_xdg_helper=/usr/local/libexec/forge-xdg-environment
 [[ -r "$forge_xdg_helper" ]] || forge_xdg_helper="$(dirname "${BASH_SOURCE[0]}")/forge-xdg-environment"
 source "$forge_xdg_helper"

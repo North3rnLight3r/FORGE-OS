@@ -35,7 +35,7 @@ overlay_sha="$(
 staging="$(mktemp -d "$state_dir/forge-source.XXXXXX")"
 cleanup() { rm -rf -- "$staging"; }
 trap cleanup EXIT
-git -C "$forge_source" archive "$commit" | tar -x -C "$staging"
+git -C "$forge_source" archive "$commit" | tar --warning=no-timestamp -x -C "$staging"
 for overlay in "${overlays[@]}"; do
   relative="${overlay#"$repository_root/"}"
   echo "Checking FORGE-OS overlay: $relative"
