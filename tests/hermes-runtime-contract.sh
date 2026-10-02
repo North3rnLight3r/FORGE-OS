@@ -12,12 +12,12 @@ trap 'rm -rf -- "$temporary"' EXIT
 grep -Fq 'http://127.0.0.1:11434/v1' "$root/config/forge-hermes.env" || { echo 'Ollama Hermes endpoint is not configured.' >&2; exit 1; }
 
 git -C "$forge_source" archive HEAD | tar --warning=no-timestamp -x -C "$temporary"
-for overlay in "$root"/overlays/*.patch; do
-  patch --dry-run --batch --forward --fuzz=0 -d "$temporary" -p1 <"$overlay" >/dev/null
-  patch --batch --forward --fuzz=0 -d "$temporary" -p1 <"$overlay" >/dev/null
-done
-
+grep -Fq 'class HermesBridge' "$temporary/packages/ai/src/hermes.ts"
+grep -Fq "DEFAULT_HERMES_ENDPOINT = 'http://127.0.0.1:11434/v1'" "$temporary/packages/ai/src/hermes.ts"
+grep -Fq 'modelsEndpoint' "$temporary/packages/agent-runtime/src/index.ts"
 grep -Fq 'process.env.FORGE_HERMES_ENDPOINT' "$temporary/apps/desktop/src/main/settings.ts"
+grep -Fq 'FORGE intelligence layer' "$temporary/packages/ai/src/intelligence-layer.ts"
+grep -Fq 'this.provider.chatWithTools' "$temporary/packages/ai/src/hermes.ts"
 grep -Fq 'status?.endpointReachable === true' "$temporary/packages/agent-runtime/src/index.ts"
 grep -Fq 'native ToolRouter' "$temporary/packages/agent-runtime/src/index.ts"
-echo 'PASS: pinned FORGE accepts the FORGE-OS native Ollama/Hermes endpoint overlay.'
+echo 'PASS: pinned FORGE contains the native Ollama/Hermes bridge and shared intelligence layer.'

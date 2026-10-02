@@ -94,6 +94,20 @@ for repository in "${repositories[@]}"; do
   }
 done
 
+# FORGE-OS must update as a coordinated pair. A repository can be clean and
+# current relative to its own origin while still pointing at a different
+# FORGE source commit. Refuse that state before checkpointing or changing
+# either checkout so the failure explains the real synchronization problem.
+forge_target="$(git -C "$forge_repository" rev-parse origin/main)"
+forge_ref=''
+if [[ -r "$os_repository/FORGE_REF" ]]; then
+  forge_ref="$(tr -d '[:space:]' < "$os_repository/FORGE_REF")"
+fi
+if [[ -n "$forge_ref" && "$forge_ref" != "$forge_target" ]]; then
+  echo "Coordinated FORGE update is unavailable: FORGE-OS FORGE_REF is $forge_ref but FORGE origin/main is $forge_target. Push a FORGE-OS commit that pins the new FORGE source before retrying." >&2
+  exit 65
+fi
+
 # Save the complete currently installed FORGE-owned integration layer before
 # changing either source tree. Prefer the installed root-owned helper; use bash
 # on the repository copy as a recovery-compatible fallback so source file mode

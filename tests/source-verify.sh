@@ -133,7 +133,7 @@ grep -Fq 'INTERNAL_PROVIDER_ARGUMENTS' "$forge_source/packages/agent-tools/src/i
 grep -Fq "name: 'browser.read'" "$forge_source/packages/agent-tools/src/index.ts" && pass 'bounded browser reads remain provider-neutral' || fail 'browser.read tool is missing'
 
 grep -Fq 'forge-maintenance-center' "$root/scripts/forge-system-surface" && grep -Fq 'forge-system-rollback' "$root/scripts/forge-maintenance-center" && pass 'Advanced routes to maintenance and full-system rollback' || fail 'Advanced maintenance routing is incomplete'
-grep -Fq 'forge-hermes.env' "$root/session/forge-wayland-session" && grep -Fq 'http://127.0.0.1:11434/v1' "$root/config/forge-hermes.env" && pass 'FORGE-OS exports the native Ollama Hermes endpoint' || fail 'native Ollama Hermes endpoint configuration is missing'
+grep -Fq 'forge-hermes.env' "$root/session/forge-wayland-session" && grep -Fq 'FORGE_HERMES_MODEL' "$root/config/forge-hermes.env" && grep -Fq 'http://127.0.0.1:11434/v1' "$root/config/forge-hermes.env" && pass 'FORGE-OS exports the native Ollama Hermes bridge defaults' || fail 'native Ollama Hermes bridge configuration is missing'
 grep -Fq '/var/lib/forge-os/checkpoints' "$root/scripts/forge-system-checkpoint" && grep -Fq 'sha256sum -c' "$root/scripts/forge-system-rollback-apply" && pass 'pre-update system checkpoint is integrity verified' || fail 'system checkpoint/rollback integrity contract is incomplete'
 
 [[ -r "$root/config/forge-starship.toml" ]] && grep -Fq 'STARSHIP_CONFIG /usr/share/forge-os/forge-starship.toml' "$root/config/forge-dr460nized.fish" && pass 'Fish/Starship theme wiring is complete' || fail 'Fish/Starship theme wiring is incomplete'

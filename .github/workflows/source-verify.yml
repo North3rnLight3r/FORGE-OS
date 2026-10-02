@@ -59,7 +59,7 @@ jobs:
           set -euo pipefail
           test "$(git -C FORGE rev-parse HEAD)" = "${{ steps.forge-ref.outputs.sha }}"
 
-      - name: Verify FORGE overlay and native Ollama Hermes contract
+      - name: Verify shared native Ollama Hermes bridge contract
         run: FORGE_SOURCE="$GITHUB_WORKSPACE/FORGE" bash ./FORGE-OS/tests/hermes-runtime-contract.sh
 
       - name: Build canonical tuigreet 0.11.0
