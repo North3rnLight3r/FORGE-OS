@@ -37,6 +37,14 @@ require_current_main() {
 require_current_main "$root" FORGE-OS
 require_current_main "$forge_source" FORGE
 
+forge_ref="$(tr -d '[:space:]' < "$root/FORGE_REF" 2>/dev/null || true)"
+forge_head="$(git -C "$forge_source" rev-parse HEAD)"
+[[ "$forge_ref" =~ ^[0-9a-f]{40}$ ]] || { echo "FORGE_REF is missing or invalid: $root/FORGE_REF" >&2; exit 1; }
+[[ "$forge_head" == "$forge_ref" ]] || {
+  printf 'FORGE source HEAD does not match FORGE_REF.\n  HEAD: %s\n  REF:  %s\n' "$forge_head" "$forge_ref" >&2
+  exit 1
+}
+
 # These are intentional installer stages, not obsolete duplicate entry points.
 if [[ "$skip_packages" == false ]]; then
   "$root/scripts/bootstrap-forgeos.sh"

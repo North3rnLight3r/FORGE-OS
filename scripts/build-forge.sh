@@ -16,6 +16,12 @@ forge_version="$(node -p "require(process.argv[1]).version" "$forge_source/packa
 
 mkdir -p "$state_dir"
 commit="$(git -C "$forge_source" rev-parse HEAD)"
+forge_ref="$(tr -d '[:space:]' < "$repository_root/FORGE_REF" 2>/dev/null || true)"
+[[ "$forge_ref" =~ ^[0-9a-f]{40}$ ]] || { echo "FORGE_REF is missing or invalid: $repository_root/FORGE_REF" >&2; exit 1; }
+[[ "$commit" == "$forge_ref" ]] || {
+  printf 'FORGE source HEAD does not match FORGE_REF.\n  HEAD: %s\n  REF:  %s\n' "$commit" "$forge_ref" >&2
+  exit 1
+}
 lock_sha="$(sha256sum "$forge_source/package-lock.json" | awk '{print $1}')"
 package_sha="$(sha256sum "$forge_source/package.json" | awk '{print $1}')"
 runtime_source_sha="$($repository_root/scripts/runtime-source-hash.sh "$forge_source")"

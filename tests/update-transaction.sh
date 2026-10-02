@@ -101,8 +101,8 @@ forge="$temporary/checkout-FORGE"
 forge_os="$temporary/checkout-FORGE-OS"
 forge_publisher="$temporary/publisher-FORGE"
 os_publisher="$temporary/publisher-FORGE-OS"
-forge_url='https://github.com/kaeganscott26/FORGE.git'
-os_url='https://github.com/kaeganscott26/FORGE-OS.git'
+forge_url='https://github.com/North3rnLight3r/FORGE.git'
+os_url='https://github.com/North3rnLight3r/FORGE-OS.git'
 marker="$temporary/installed"
 checkpoint_marker="$temporary/checkpointed"
 

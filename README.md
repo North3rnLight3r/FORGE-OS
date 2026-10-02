@@ -28,8 +28,8 @@ The login UI uses canonical `tuigreet/tuigreet` **0.11.0**, pinned to its signed
 Clone FORGE and FORGE-OS as sibling directories in the same user's home directory. A fresh Arch/FORGE-OS machine uses:
 
 ```bash
-git clone https://github.com/kaeganscott26/FORGE.git ~/FORGE
-git clone https://github.com/kaeganscott26/FORGE-OS.git ~/FORGE-OS
+git clone https://github.com/North3rnLight3r/FORGE.git ~/FORGE
+git clone https://github.com/North3rnLight3r/FORGE-OS.git ~/FORGE-OS
 cd ~/FORGE-OS
 ./install.sh
 ```
