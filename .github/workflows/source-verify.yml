@@ -35,11 +35,23 @@ jobs:
           echo "sha=$ref" >> "$GITHUB_OUTPUT"
           echo "FORGE source pinned to $ref"
 
+      - name: Require private FORGE checkout token
+        env:
+          FORGE_REPO_TOKEN: ${{ secrets.FORGE_REPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$FORGE_REPO_TOKEN" || {
+            echo "Missing FORGE_REPO_TOKEN repository secret; it must grant read access to the private FORGE repository." >&2
+            exit 1
+          }
+
       - uses: actions/checkout@v7
         with:
           repository: North3rnLight3r/FORGE
           ref: ${{ steps.forge-ref.outputs.sha }}
           path: FORGE
+          token: ${{ secrets.FORGE_REPO_TOKEN }}
 
       - name: Verify pinned FORGE checkout
         shell: bash

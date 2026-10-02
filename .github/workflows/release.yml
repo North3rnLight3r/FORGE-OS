@@ -25,11 +25,24 @@ jobs:
           [[ "$version" = 2.5.0-beta && "$forge_ref" =~ ^[0-9a-f]{40}$ ]]
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "forge_ref=$forge_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Require private FORGE checkout token
+        env:
+          FORGE_REPO_TOKEN: ${{ secrets.FORGE_REPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$FORGE_REPO_TOKEN" || {
+            echo "Missing FORGE_REPO_TOKEN repository secret; it must grant read access to the private FORGE repository." >&2
+            exit 1
+          }
+
       - uses: actions/checkout@v7
         with:
           repository: North3rnLight3r/FORGE
           ref: ${{ steps.inputs.outputs.forge_ref }}
           path: FORGE
+          token: ${{ secrets.FORGE_REPO_TOKEN }}
       - name: Build fresh ISO in Arch container
         shell: bash
         run: |
