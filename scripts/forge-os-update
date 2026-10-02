@@ -8,8 +8,8 @@ os_repository="${FORGE_OS_SOURCE_DIR:-$HOME/FORGE-OS}"
 
 repositories=("$forge_repository" "$os_repository")
 expected_origins=(
-  'https://github.com/kaeganscott26/FORGE'
-  'https://github.com/kaeganscott26/FORGE-OS'
+  'https://github.com/North3rnLight3r/FORGE'
+  'https://github.com/North3rnLight3r/FORGE-OS'
 )
 
 for index in "${!repositories[@]}"; do
