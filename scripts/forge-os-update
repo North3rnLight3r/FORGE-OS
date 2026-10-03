@@ -5,63 +5,19 @@ set -euo pipefail
 
 forge_repository="${FORGE_SOURCE_DIR:-$HOME/FORGE}"
 os_repository="${FORGE_OS_SOURCE_DIR:-$HOME/FORGE-OS}"
-
-repositories=("$forge_repository" "$os_repository")
-
-for repository in "${repositories[@]}"; do
+for repository in "$forge_repository" "$os_repository"; do
   [[ -d "$repository/.git" ]] || { echo "Required Git checkout is missing: $repository" >&2; exit 66; }
 done
 
 forge_before="$(git -C "$forge_repository" rev-parse HEAD)"
 os_before="$(git -C "$os_repository" rev-parse HEAD)"
-obsidian_stashed=(false false)
-for index in "${!repositories[@]}"; do
-  repository="${repositories[$index]}"
-  if [[ -n "$(git -C "$repository" status --porcelain -- .obsidian 2>/dev/null)" ]]; then
-    git -C "$repository" stash push --include-untracked --message 'FORGE-OS updater local Obsidian state' -- .obsidian >/dev/null
-    obsidian_stashed[$index]=true
-  fi
-done
 
-apply_obsidian_stashes() {
-  for index in "${!repositories[@]}"; do
-    [[ "${obsidian_stashed[$index]}" == true ]] || continue
-    git -C "${repositories[$index]}" stash apply --index 'stash@{0}' >/dev/null
-  done
-}
+# The two local checkouts are the complete update source. This command never fetches, merges, resets, downloads a release, or consults FORGE_REF. Pull or
+# switch to the exact commits you want first; the installer then builds those
+# working trees and activates that build.
+echo "Using local FORGE source:    $forge_before"
+echo "Using local FORGE-OS source:  $os_before"
 
-drop_obsidian_stashes() {
-  for index in "${!repositories[@]}"; do
-    [[ "${obsidian_stashed[$index]}" == true ]] || continue
-    git -C "${repositories[$index]}" stash drop 'stash@{0}' >/dev/null
-    obsidian_stashed[$index]=false
-  done
-}
-
-restore_sources_on_failure() {
-  local status=$?
-  trap - EXIT
-  echo 'Update failed; leaving both source checkouts at their current local state.' >&2
-  if apply_obsidian_stashes; then
-    drop_obsidian_stashes
-  else
-    echo 'Local Obsidian state remains in each affected repository stash because it could not be restored automatically.' >&2
-  fi
-  exit "$status"
-}
-trap restore_sources_on_failure EXIT
-
-echo 'Refreshing available source checkouts; local branches, commits, and edits are accepted.'
-for repository in "${repositories[@]}"; do
-  if ! git -C "$repository" fetch --prune origin main; then
-    echo "Warning: unable to refresh origin/main for $repository; installing the current local source." >&2
-  fi
-done
-
-# Save the complete currently installed FORGE-owned integration layer before
-# changing either source tree. Prefer the installed root-owned helper; use bash
-# on the repository copy as a recovery-compatible fallback so source file mode
-# cannot make an otherwise valid update fail.
 if [[ -x /usr/local/libexec/forge-system-checkpoint && -z "${FORGE_UPDATE_TEST_UNPRIVILEGED:-}" && -z "${FORGE_OS_SOURCE_DIR:-}" ]]; then
   sudo /usr/local/libexec/forge-system-checkpoint "$forge_before" "$os_before"
 elif [[ -r "$os_repository/scripts/forge-system-checkpoint" ]]; then
@@ -71,20 +27,9 @@ else
   exit 69
 fi
 
-for repository in "${repositories[@]}"; do
-  if git -C "$repository" show-ref --verify --quiet refs/remotes/origin/main; then
-    if ! git -C "$repository" merge --ff-only origin/main; then
-      echo "Warning: $repository is not fast-forwardable from origin/main; installing its current local source." >&2
-    fi
-  fi
-done
-
-echo 'Installing the verified FORGE-OS update...'
+echo 'Building and installing the current local FORGE/ FORGE-OS source...'
 "$os_repository/scripts/install-forge-linux.sh"
 
-apply_obsidian_stashes
-drop_obsidian_stashes
-trap - EXIT
-
 echo
-echo 'FORGE-OS is updated. The pre-update system checkpoint is available from Advanced -> Roll back system checkpoint. Reboot when convenient to enter the newly installed session stack.'
+echo 'FORGE-OS was rebuilt and installed from the current local checkouts.'
+echo 'The pre-update system checkpoint is available from Advanced -> Roll back system checkpoint.'

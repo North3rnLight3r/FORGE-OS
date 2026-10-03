@@ -17,7 +17,7 @@ A stable tag is allowed only when every applicable item is evidenced. Source suc
 - [ ] Installed apps use normal backend paths and appear in FORGE Applications without relogin.
 - [ ] Fish is the account shell and the Dr460nized-inspired Fish/Starship theme loads.
 - [ ] Final immutable runtime hashes match the build record and installed payload; sandbox is root:root `4755`.
-- [ ] Update acceptance cases (dirty, divergent, unavailable-origin, detached, and fast-forwardable local checkouts), failed-install state preservation, and one local-source install pass.
+- [ ] Update acceptance cases (dirty, divergent, detached, and local-commit checkouts), failed-install state preservation, and one local-source install pass.
 - [ ] Last-known-good rollback passes, removes only the superseded runtime, and a subsequent update does not conflict.
 
 ## Login, desktop, and recovery
@@ -35,7 +35,7 @@ A stable tag is allowed only when every applicable item is evidenced. Source suc
 
 - [ ] Linux AppImage and DEB pass runtime metadata and native PTY verification.
 - [ ] Windows NSIS passes runtime metadata and ConPTY resource verification on a Windows runner.
-- [ ] macOS universal DMG/ZIP pass manifest, bundle, updater metadata, architecture, and native PTY verification on a macOS runner.
+- [ ] macOS universal DMG/ZIP pass manifest, bundle, architecture, and native PTY verification on a macOS runner.
 - [ ] A committed runtime-parity verifier confirms version, commit, deterministic build date, and shared runtime identity across Linux, Windows, and macOS. This verifier is not yet implemented.
 
 ## ISO and publication
@@ -44,6 +44,6 @@ A stable tag is allowed only when every applicable item is evidenced. Source suc
 - [ ] ISO boots in UEFI VM and reference hardware; live `forge` account, package stack, login, desktop, recovery, networking, audio, portals, and shutdown pass.
 - [ ] Guided install/partition behavior is present or the artifact is labeled truthfully as live/recovery rather than a stable installer.
 - [ ] Final commit is pushed, annotated tag resolves to it, CI jobs pass at the tag, and artifacts are signed where policy requires.
-- [ ] GitHub stable release/ISO assets, updater metadata, and published checksums match local verified files byte-for-byte.
-- [ ] A clean client on the stable channel observes the new version; equal/downgrade/prerelease mismatch is rejected.
+- [ ] GitHub release/ISO assets and published checksums match local verified files byte-for-byte.
+- [ ] A clean checkout packages and installs the exact selected local source without changing Git refs.
 - [ ] Final Codex session log records commands, results, artifacts, hashes, remote URLs, and any physical evidence.

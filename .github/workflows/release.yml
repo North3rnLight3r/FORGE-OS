@@ -21,10 +21,8 @@ jobs:
         run: |
           set -euo pipefail
           version="$(tr -d '[:space:]' < FORGE-OS/VERSION)"
-          forge_ref="$(tr -d '[:space:]' < FORGE-OS/FORGE_REF)"
-          [[ "$version" = 2.5.0-beta && "$forge_ref" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$version" = 2.5.0-beta ]]
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "forge_ref=$forge_ref" >> "$GITHUB_OUTPUT"
 
       - name: Require private FORGE checkout token
         env:
@@ -40,7 +38,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: North3rnLight3r/FORGE
-          ref: ${{ steps.inputs.outputs.forge_ref }}
+          ref: main
           path: FORGE
           token: ${{ secrets.FORGE_REPO_TOKEN }}
       - name: Verify exact FORGE source and Hermes bridge contract

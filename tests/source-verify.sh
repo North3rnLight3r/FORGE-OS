@@ -135,13 +135,14 @@ grep -Fq "name: 'browser.read'" "$forge_source/packages/agent-tools/src/index.ts
 grep -Fq 'forge-maintenance-center' "$root/scripts/forge-system-surface" && grep -Fq 'forge-system-rollback' "$root/scripts/forge-maintenance-center" && pass 'Advanced routes to maintenance and full-system rollback' || fail 'Advanced maintenance routing is incomplete'
 grep -Fq 'forge-hermes.env' "$root/session/forge-wayland-session" && grep -Fq 'FORGE_HERMES_MODEL' "$root/config/forge-hermes.env" && grep -Fq 'http://127.0.0.1:11434/v1' "$root/config/forge-hermes.env" && pass 'FORGE-OS exports the native Ollama Hermes bridge defaults' || fail 'native Ollama Hermes bridge configuration is missing'
 grep -Fq '/var/lib/forge-os/checkpoints' "$root/scripts/forge-system-checkpoint" && grep -Fq 'sha256sum -c' "$root/scripts/forge-system-rollback-apply" && pass 'pre-update system checkpoint is integrity verified' || fail 'system checkpoint/rollback integrity contract is incomplete'
+grep -Fq 'never fetches, merges, resets, downloads a release' "$root/scripts/forge-os-update" && ! grep -Eq 'git (fetch|merge|reset)' "$root/scripts/forge-os-update" && pass 'FORGE-OS update installs the current local checkouts without stale remote refs' || fail 'FORGE-OS update still has a stale remote-ref path'
+grep -Fq 'build-forge.sh' "$root/scripts/install-forge-linux.sh" && ! grep -Fq -- '--use-current-build' "$root/scripts/install-forge-linux.sh" && pass 'Linux install has one build-then-install path' || fail 'Linux installer retains a second stale-build path'
 
 [[ -r "$root/config/forge-starship.toml" ]] && grep -Fq 'STARSHIP_CONFIG /usr/share/forge-os/forge-starship.toml' "$root/config/forge-dr460nized.fish" && pass 'Fish/Starship theme wiring is complete' || fail 'Fish/Starship theme wiring is incomplete'
 grep -Fq '[Colors:Selection]' "$root/config/kdeglobals" && grep -Fq 'DecorationFocus=55,220,125' "$root/config/kdeglobals" && pass 'native KDE windows use FORGE dark/green palette' || fail 'native KDE theme bridge is incomplete'
 
 [[ "$(tr -d '[:space:]' < "$root/VERSION")" == '2.5.0-beta' ]] && pass 'current VERSION is the 2.5.0 beta release' || fail 'FORGE-OS VERSION is not 2.5.0-beta'
-forge_ref="$(tr -d '[:space:]' < "$root/FORGE_REF" 2>/dev/null || true)"
-[[ "$forge_ref" =~ ^[0-9a-f]{40}$ ]] && pass 'FORGE_REF provenance record is valid (not a local build/install gate)' || fail 'FORGE_REF provenance record is invalid'
+[[ ! -e "$root/FORGE_REF" ]] && pass 'stale FORGE_REF build pin is removed' || fail 'stale FORGE_REF build pin remains'
 grep -Fq "tags: ['v2.5.0-beta']" "$root/.github/workflows/release.yml" && grep -Fq 'gh release create v2.5.0-beta' "$root/.github/workflows/release.yml" && grep -Fq -- '--prerelease' "$root/.github/workflows/release.yml" && grep -Fq 'find FORGE-OS/build/iso' "$root/.github/workflows/release.yml" && pass '2.5.0 beta publication is exact-tag gated' || fail '2.5.0 beta publication gate is incomplete'
 
 duplicates="$(sed -e 's/#.*$//' -e '/^[[:space:]]*$/d' "$root/manifests/arch-packages.txt" | sort | uniq -d)"

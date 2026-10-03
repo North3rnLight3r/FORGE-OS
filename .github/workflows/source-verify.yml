@@ -25,16 +25,6 @@ jobs:
         with:
           path: FORGE-OS
 
-      - name: Resolve pinned FORGE source
-        id: forge-ref
-        shell: bash
-        run: |
-          set -euo pipefail
-          ref="$(tr -d '[:space:]' < FORGE-OS/FORGE_REF)"
-          [[ "$ref" =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid FORGE_REF: $ref" >&2; exit 1; }
-          echo "sha=$ref" >> "$GITHUB_OUTPUT"
-          echo "FORGE source pinned to $ref"
-
       - name: Require private FORGE checkout token
         env:
           FORGE_REPO_TOKEN: ${{ secrets.FORGE_REPO_TOKEN }}
@@ -49,15 +39,16 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: North3rnLight3r/FORGE
-          ref: ${{ steps.forge-ref.outputs.sha }}
+          ref: main
           path: FORGE
           token: ${{ secrets.FORGE_REPO_TOKEN }}
 
-      - name: Verify pinned FORGE checkout
+      - name: Verify current FORGE checkout
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C FORGE rev-parse HEAD)" = "${{ steps.forge-ref.outputs.sha }}"
+          test -n "$(git -C FORGE rev-parse HEAD)"
+          echo "FORGE source: $(git -C FORGE rev-parse HEAD)"
 
       - name: Verify shared native Ollama Hermes bridge contract
         run: FORGE_SOURCE="$GITHUB_WORKSPACE/FORGE" bash ./FORGE-OS/tests/hermes-runtime-contract.sh

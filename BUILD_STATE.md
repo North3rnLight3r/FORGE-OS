@@ -27,7 +27,7 @@ Release/CI FORGE provenance: `95a9ea7f6b43a67b9cf5fe4177aa756a72922b60`
 - Guided Setup provides KDE Partition Manager, Network settings, root recovery shell, ISO/ZIP bundle loading, target/user/hostname/timezone selection, and checkbox-driven optional services.
 - Clean install is mount-targeted and never partitions/formats disks. It uses pacstrap, UUID fstab, the exact ISO FORGE runtime, the canonical greetd/Wayland path, systemd-boot on UEFI, Advanced/recovery helpers, and a first-boot required-service verifier.
 - The installed target never inherits the live passwordless-sudo policy.
-- `FORGE_REF` is retained as release/CI provenance; local builds and installs use the current FORGE worktree without requiring commit parity.
+- Local builds and installs use the current FORGE worktree and record its commit only as build provenance; no stale source pin is required.
 - The pinned shared renderer uses routed dialogs for file/folder, goal/task, persistent-task, and rename actions; every renderer button has a route contract.
 - Home is available on macOS, Windows, Linux, and as the FORGE-OS default. Explorer loads folders on demand, while bounded discovery skips unreadable/container-backed subtrees instead of aborting on `EACCES`.
 - The FORGE 2.5 renderer carries the northern-lights brand, adaptive Three.js aurora surfaces, bundled UI/display fonts, animated glass windows, reduced-motion handling, and reliable opt-out synthesized system sounds across the shared Linux/macOS/Windows source.

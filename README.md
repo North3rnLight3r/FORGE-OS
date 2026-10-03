@@ -2,7 +2,7 @@
 
 FORGE-OS is the Arch-based integration layer that makes FORGE the visible workspace, desktop, Explorer, settings, recovery, update, and setup experience. Arch, systemd, KWin, Plasma services, NetworkManager, PipeWire, PolicyKit, pacman, and the native package databases remain the operating-system substrate; they do not become the primary UI.
 
-Current Beta release: **`FORGE-OS 2.5.0-beta`**, bundling the FORGE **`2.5.0-beta`** living-intelligence runtime. The tag workflow builds and publishes the versioned x86_64 ISO and checksum from the exact pinned shared source.
+Current Beta release: **`FORGE-OS 2.5.0-beta`**, bundling the FORGE **`2.5.0-beta`** living-intelligence runtime. Release automation checks out the current shared FORGE source and records its commit in the generated runtime metadata.
 
 ## Login contract
 
@@ -48,7 +48,7 @@ cd ~/FORGE-OS
 ./update.sh
 ```
 
-refreshes available remotes on a best-effort basis, temporarily preserves local `.obsidian` UI state, creates a root-owned pre-update FORGE-OS system checkpoint, optionally fast-forwards when possible, and runs the authoritative installer against the current local source. Local branches, commits, working-tree edits, unavailable remotes, and divergent history do not block installation; source checkouts are left in their current local state if installation fails.
+ creates a root-owned pre-update FORGE-OS system checkpoint and runs the authoritative installer against the current local FORGE and FORGE-OS checkouts. It never fetches, merges, resets, downloads a release, or consults a stale source pin. Pull or switch to the exact commits you want before running the command; local branches, detached heads, and working-tree edits are preserved.
 
 ## Packages, mirrors, and services
 
@@ -138,9 +138,9 @@ The ISO reports both versions (`/etc/forge-os-version` and the bundled FORGE run
 
 FORGE-OS installs `config/forge-hermes.env` as `/usr/share/forge-os/forge-hermes.env` and sources it before the Wayland session starts. By default it selects the Hermes runtime through the Ollama OpenAI-compatible endpoint `http://127.0.0.1:11434/v1` and uses `llama3.2:3b`; set `FORGE_OLLAMA_MODEL` or `FORGE_HERMES_MODEL` in the session environment to choose another installed Ollama model. Native FORGE and Hermes remain interchangeable, and FORGE's shared context, intelligence layer, ToolRouter, workspace scope, policy checks, audit trail, and cancellation remain authoritative; no external Hermes process receives direct filesystem or shell access.
 
-`FORGE_REF` remains release/CI provenance for the shared FORGE checkout; it is not required to match a local machine's FORGE commit. `build-forge.sh` and the installer use the current local FORGE worktree, including tracked edits and non-ignored untracked files, while recording the current commit only as provenance. The updater accepts detached, dirty, and divergent checkouts and never resets them to force commit parity.
+`build-forge.sh` and the installer use the current local FORGE worktree, including tracked edits and non-ignored untracked files, while recording the current commit only as provenance. The updater accepts detached, dirty, and divergent checkouts and never resets them to force commit parity.
 
-The source workflow pins the FORGE checkout through `FORGE_REF`, builds canonical tuigreet 0.11.0, validates greeter/setup/maintenance contracts, verifies that provider schemas omit runtime-only tool metadata, and then runs the complete FORGE typecheck, lint, tests, production build, package resolution, shell/TOML/unit checks, and source contract. The pinned shared runtime applies the same tool schema, policy, and audit behavior to FORGE-OS/Linux, macOS, and Windows packages.
+The source workflow checks out the current FORGE `main` source, builds canonical tuigreet 0.11.0, validates greeter/setup/maintenance contracts, verifies that provider schemas omit runtime-only tool metadata, and then runs the complete FORGE typecheck, lint, tests, production build, package resolution, shell/TOML/unit checks, and source contract. The generated runtime records the exact source commit used for that run.
 
 A separate GitHub Actions test-ISO workflow is allowed to publish only after that source workflow succeeds for `main`. The resulting GitHub release is a **prerelease**, never a stable release, and contains one versioned x86_64 ISO plus its checksum.
 

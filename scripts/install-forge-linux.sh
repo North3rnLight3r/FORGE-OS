@@ -3,11 +3,9 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 skip_packages=false
-use_current_build=false
 for argument in "$@"; do
   case "$argument" in
     --skip-packages) skip_packages=true ;;
-    --use-current-build) use_current_build=true ;;
     *) echo "Unknown option: $argument" >&2; exit 64 ;;
   esac
 done
@@ -32,16 +30,7 @@ if [[ "$skip_packages" == false ]]; then
 fi
 "$root/scripts/configure-hardware.sh"
 
-if [[ "$use_current_build" == false ]]; then
-  "$root/scripts/build-forge.sh" "$forge_source"
-else
-  [[ -r "$root/build/latest.env" ]] || { echo 'No current local build record exists.' >&2; exit 1; }
-  source "$root/build/latest.env"
-  [[ "${FORGE_OS_VERSION:-}" == "$(<"$root/VERSION")" ]] || { echo 'Current build does not match this FORGE-OS version.' >&2; exit 1; }
-  [[ "${FORGE_PACKAGE_SHA256:-}" == "$(sha256sum "$forge_source/package.json" | awk '{print $1}')" ]] || { echo 'Current build does not match FORGE package.json.' >&2; exit 1; }
-  [[ "${FORGE_LOCK_SHA256:-}" == "$(sha256sum "$forge_source/package-lock.json" | awk '{print $1}')" ]] || { echo 'Current build does not match FORGE package-lock.json.' >&2; exit 1; }
-  [[ "${FORGE_RUNTIME_SOURCE_SHA256:-}" == "$("$root/scripts/runtime-source-hash.sh" "$forge_source")" ]] || { echo 'Current build does not match FORGE runtime source.' >&2; exit 1; }
-fi
+"$root/scripts/build-forge.sh" "$forge_source"
 
 "$root/scripts/install-runtime.sh"
 source "$root/build/latest.env"

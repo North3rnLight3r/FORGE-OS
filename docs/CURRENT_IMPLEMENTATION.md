@@ -29,9 +29,9 @@ The production profile no longer depends on an experimental X11-first path. Reco
 ## FORGE runtime ownership
 
 - FORGE and FORGE-OS are sibling repositories.
-- `FORGE_REF` records release/CI provenance; local build and install paths do not require a matching FORGE commit.
+- Local build and install paths use the current FORGE worktree and record its commit only as build provenance.
 - Installation builds/installs a content-addressed FORGE runtime and maintains current/last-known-good switching.
-- Update flow refreshes configured remotes on a best-effort basis, optionally fast-forwards, and reinstalls from the current local source without branch, dirty-tree, or commit-parity gates.
+- Update flow checkpoints the installed system and reinstalls from the current local FORGE/FORGE-OS source without fetching, merging, resetting, or branch/dirty-tree/commit-parity gates.
 - Pre-update checkpoints cover the FORGE-owned system integration layer without treating user projects or package databases as rollback payloads.
 
 ## Desktop shell and settings

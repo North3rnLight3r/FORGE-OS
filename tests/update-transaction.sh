@@ -2,30 +2,17 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-# The real updater deliberately refuses EUID 0. GitHub Actions runs the Arch
-# container as root, so re-enter this test as an unprivileged account instead
-# of weakening the production root-safety contract just to satisfy CI.
 if [[ "$EUID" -eq 0 && -z "${FORGE_UPDATE_TEST_UNPRIVILEGED:-}" ]]; then
   command -v runuser >/dev/null 2>&1 || { echo 'runuser is required to exercise the updater as a normal user.' >&2; exit 1; }
   test_home="$(mktemp -d /tmp/forge-update-test.XXXXXX)"
-  unprivileged_user=nobody
-  chown "$unprivileged_user" "$test_home"
-  exec runuser -u "$unprivileged_user" -- env \
-    HOME="$test_home" \
-    FORGE_UPDATE_TEST_UNPRIVILEGED=1 \
-    FORGE_UPDATE_TEST_ROOT="$test_home" \
-    bash "$0"
+  chown nobody "$test_home"
+  exec runuser -u nobody -- env HOME="$test_home" FORGE_UPDATE_TEST_UNPRIVILEGED=1 FORGE_UPDATE_TEST_ROOT="$test_home" bash "$0"
 fi
 
 temporary="${FORGE_UPDATE_TEST_ROOT:-$(mktemp -d)}"
 cleanup() { rm -rf -- "$temporary"; }
 trap cleanup EXIT
 
-# The production updater crosses sudo only for the root-owned pre-update
-# checkpoint. The transaction test runs as nobody and uses a disposable PATH
-# shim that simply executes the fixture checkpoint helper. This keeps the test
-# focused on updater ordering/rollback without weakening the real sudo boundary.
 mock_bin="$temporary/mock-bin"
 install -d "$mock_bin"
 cat >"$mock_bin/sudo" <<'EOF'
@@ -41,114 +28,60 @@ git_identity() {
   git -C "$1" config user.email 'forge-update-test@invalid.local'
 }
 
-create_fixture() {
-  local name="$1" expected_url="$2"
-  local seed="$temporary/seed-$name" bare="$temporary/$name.git" checkout="$temporary/checkout-$name" publisher="$temporary/publisher-$name"
-  git init --quiet --initial-branch=main "$seed"
-  git_identity "$seed"
-  printf '%s\n' "$name baseline" >"$seed/state.txt"
+create_checkout() {
+  local name="$1"
+  local checkout="$temporary/$name"
+  git init --quiet --initial-branch=main "$checkout"
+  git_identity "$checkout"
+  printf '%s\n' "$name baseline" >"$checkout/state.txt"
   if [[ "$name" == FORGE-OS ]]; then
-    install -d "$seed/scripts"
-    printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' '[[ "${FORGE_UPDATE_TEST_INSTALL_FAIL:-0}" != 1 ]] || exit 42' 'touch "$FORGE_UPDATE_TEST_MARKER"' >"$seed/scripts/install-forge-linux.sh"
-    chmod 0755 "$seed/scripts/install-forge-linux.sh"
-    cat >"$seed/scripts/forge-system-checkpoint" <<'EOF'
+    install -d "$checkout/scripts"
+    cat >"$checkout/scripts/forge-system-checkpoint" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ $# -eq 2 && "$1" =~ ^[0-9a-f]{40}$ && "$2" =~ ^[0-9a-f]{40}$ ]]
-[[ -n "${FORGE_UPDATE_TEST_CHECKPOINT_MARKER:-}" ]] && printf '%s %s\n' "$1" "$2" >"$FORGE_UPDATE_TEST_CHECKPOINT_MARKER"
+[[ $# -eq 2 ]] || exit 1
+printf '%s %s\n' "$1" "$2" >"$FORGE_UPDATE_TEST_CHECKPOINT_MARKER"
 EOF
-    chmod 0755 "$seed/scripts/forge-system-checkpoint"
+    chmod 0755 "$checkout/scripts/forge-system-checkpoint"
+    cat >"$checkout/scripts/install-forge-linux.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${FORGE_UPDATE_TEST_INSTALL_FAIL:-0}" != 1 ]] || exit 42
+printf '%s\n' "$(git -C "$FORGE_SOURCE_DIR" rev-parse HEAD) $(git -C "$FORGE_OS_SOURCE_DIR" rev-parse HEAD)" >"$FORGE_UPDATE_TEST_INSTALL_MARKER"
+EOF
+    chmod 0755 "$checkout/scripts/install-forge-linux.sh"
   fi
-  git -C "$seed" add .
-  git -C "$seed" commit --quiet -m 'initial fixture'
-  git clone --quiet --bare "$seed" "$bare"
-  git clone --quiet "$bare" "$checkout"
-  git clone --quiet "$bare" "$publisher"
-  git_identity "$checkout"
-  git_identity "$publisher"
-
-  # The test rewrites the configured HTTPS origin to a local bare repository
-  # for disposable fixtures, while also exercising an unavailable origin.
-  git -C "$checkout" config protocol.file.allow always
-  git -C "$publisher" config protocol.file.allow always
-  git -C "$checkout" remote set-url origin "$expected_url"
-  git -C "$checkout" config "url.file://$bare.insteadOf" "$expected_url"
+  git -C "$checkout" add .
+  git -C "$checkout" commit --quiet -m 'initial fixture'
 }
 
-publish_change() {
-  local publisher="$1" label="$2"
-  printf '%s\n' "$label" >>"$publisher/state.txt"
-  git -C "$publisher" add state.txt
-  git -C "$publisher" commit --quiet -m "$label"
-  git -C "$publisher" push --quiet origin main
-}
-
-expect_failure() {
-  local expected="$1"; shift
-  set +e
-  "$@" >"$temporary/failure.out" 2>"$temporary/failure.err"
-  local status=$?
-  set -e
-  [[ "$status" -eq "$expected" ]] || {
-    echo "Expected exit $expected, received $status" >&2
-    sed -n '1,160p' "$temporary/failure.err" >&2
-    exit 1
-  }
-}
-
-forge="$temporary/checkout-FORGE"
-forge_os="$temporary/checkout-FORGE-OS"
-forge_publisher="$temporary/publisher-FORGE"
-os_publisher="$temporary/publisher-FORGE-OS"
-forge_url='https://github.com/North3rnLight3r/FORGE.git'
-os_url='https://github.com/North3rnLight3r/FORGE-OS.git'
+forge="$temporary/FORGE"
+forge_os="$temporary/FORGE-OS"
 marker="$temporary/installed"
 checkpoint_marker="$temporary/checkpointed"
+create_checkout FORGE
+create_checkout FORGE-OS
 
-create_fixture FORGE "$forge_url"
-create_fixture FORGE-OS "$os_url"
-
+# Detached, dirty, divergent, or remote-less checkouts are all valid. The
+# updater must install the exact local commits and must not invoke Git network
+# operations at all.
+git -C "$forge" switch --detach --quiet HEAD
+printf '%s\n' local-edit >>"$forge/state.txt"
+git -C "$forge_os" commit --quiet --allow-empty -m 'local update'
 git -C "$forge_os" switch --detach --quiet HEAD
-touch "$forge_os/dirty-untracked"
-env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update" >/dev/null
-[[ -e "$marker" && -e "$forge_os/dirty-untracked" ]] || { echo 'Updater did not install from a detached checkout with local edits.' >&2; exit 1; }
-rm -f "$marker" "$forge_os/dirty-untracked"
+touch "$forge_os/local-untracked"
 
-git -C "$forge" config remote.origin.url 'https://untrusted.invalid/FORGE.git'
-env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update" >/dev/null
-[[ -e "$marker" ]] || { echo 'Updater did not install when the configured origin was unavailable.' >&2; exit 1; }
-rm -f "$marker"
-git -C "$forge" config remote.origin.url "$forge_url"
+env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER=unused FORGE_UPDATE_TEST_INSTALL_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update" >/dev/null
+[[ -s "$marker" && -s "$checkpoint_marker" ]] || { echo 'Updater did not checkpoint and install the current local source.' >&2; exit 1; }
+read -r installed_forge installed_os <"$marker"
+[[ "$installed_forge" == "$(git -C "$forge" rev-parse HEAD)" && "$installed_os" == "$(git -C "$forge_os" rev-parse HEAD)" ]] || { echo 'Updater installed a source ref other than the current local checkout.' >&2; exit 1; }
+[[ -e "$forge_os/local-untracked" && "$(<"$forge/state.txt")" == *local-edit ]] || { echo 'Updater did not preserve local source state.' >&2; exit 1; }
 
-publish_change "$forge_publisher" 'remote-divergence'
-git -C "$forge" commit --quiet --allow-empty -m 'local divergence'
-env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update" >/dev/null
-[[ -e "$marker" ]] || { echo 'Updater did not install from a divergent local history.' >&2; exit 1; }
-rm -f "$marker"
-git -C "$forge" fetch --quiet origin main
-git -C "$forge" reset --quiet --hard origin/main
+rm -f "$marker" "$checkpoint_marker"
+set +e
+env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_INSTALL_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" FORGE_UPDATE_TEST_INSTALL_FAIL=1 "$root/scripts/forge-os-update" >/dev/null 2>"$temporary/failure.err"
+status=$?
+set -e
+[[ "$status" -eq 42 && -s "$checkpoint_marker" && ! -e "$marker" ]] || { echo 'Failed install did not preserve checkpoint ordering or failure status.' >&2; sed -n '1,120p' "$temporary/failure.err" >&2; exit 1; }
 
-install -d "$forge/.obsidian" "$forge_os/.obsidian"
-printf '%s\n' 'local FORGE graph state' >"$forge/.obsidian/graph.json"
-printf '%s\n' 'local FORGE-OS workspace state' >"$forge_os/.obsidian/workspace.json"
-
-publish_change "$forge_publisher" 'transaction candidate'
-publish_change "$os_publisher" 'transaction candidate'
-forge_before="$(git -C "$forge" rev-parse HEAD)"
-os_before="$(git -C "$forge_os" rev-parse HEAD)"
-expect_failure 42 env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" FORGE_UPDATE_TEST_INSTALL_FAIL=1 "$root/scripts/forge-os-update"
-[[ -s "$checkpoint_marker" ]] || { echo 'Updater did not create the pre-update checkpoint before installation.' >&2; exit 1; }
-read -r checkpoint_forge checkpoint_os <"$checkpoint_marker"
-[[ "$checkpoint_forge" == "$forge_before" && "$checkpoint_os" == "$os_before" ]] || { echo 'Checkpoint did not record both pre-update source commits.' >&2; exit 1; }
-[[ "$(git -C "$forge" rev-parse HEAD)" == "$(git -C "$forge" rev-parse origin/main)" && "$(git -C "$forge_os" rev-parse HEAD)" == "$(git -C "$forge_os" rev-parse origin/main)" ]] || { echo 'Failed install did not leave both source checkouts at the selected local update.' >&2; exit 1; }
-[[ ! -e "$marker" ]] || { echo 'Failed installer unexpectedly produced its success marker.' >&2; exit 1; }
-[[ "$(<"$forge/.obsidian/graph.json")" == 'local FORGE graph state' && "$(<"$forge_os/.obsidian/workspace.json")" == 'local FORGE-OS workspace state' ]] || { echo 'Failed update did not preserve local Obsidian state.' >&2; exit 1; }
-
-rm -f "$checkpoint_marker"
-env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update" >/dev/null
-[[ -s "$checkpoint_marker" ]] || { echo 'Clean update did not checkpoint the pre-update system state.' >&2; exit 1; }
-[[ -e "$marker" ]] || { echo 'Clean fast-forward update did not run the installer.' >&2; exit 1; }
-[[ "$(git -C "$forge" rev-parse HEAD)" == "$(git -C "$forge" rev-parse origin/main)" && "$(git -C "$forge_os" rev-parse HEAD)" == "$(git -C "$forge_os" rev-parse origin/main)" ]] || { echo 'Clean update did not activate both origin/main commits.' >&2; exit 1; }
-[[ "$(<"$forge/.obsidian/graph.json")" == 'local FORGE graph state' && "$(<"$forge_os/.obsidian/workspace.json")" == 'local FORGE-OS workspace state' ]] || { echo 'Clean update did not preserve local Obsidian state.' >&2; exit 1; }
-
-echo 'PASS: updater accepts detached, dirty, unavailable-origin, and divergent local source checkouts, preserves local Obsidian state, checkpoints pre-update state, and installs the current local source'
+echo 'PASS: updater installs the exact current local FORGE and FORGE-OS checkouts without remote fetch, merge, reset, or stale release artifacts'

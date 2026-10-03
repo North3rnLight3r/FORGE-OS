@@ -18,7 +18,7 @@ Arch package mutations call the fixed `/usr/bin/pacman` through PolicyKit and us
 
 Runtime identity uses application version, package/lock hashes, runtime-source content, ordered overlays, executable/app archive hashes, and full payload hash. Ordinary commits do not force a version bump; commit and deterministic build date remain provenance. Activation occurs only after verification. `chrome-sandbox` remains root-owned mode `4755`; permanent `--no-sandbox` is prohibited.
 
-The source updater accepts no renderer-supplied command or install path. It refreshes configured remotes on a best-effort basis, fast-forwards only when a local checkout permits it, and invokes the authoritative installer against the current local source. Detached, dirty, and divergent checkouts are accepted; the updater never resets local work or reboots automatically.
+The source updater accepts no renderer-supplied command or install path. It invokes the authoritative installer against the current local FORGE and FORGE-OS checkouts. It never fetches, merges, resets, downloads a release, or reboots automatically; detached, dirty, and divergent checkouts are accepted.
 
 ## Agent and secrets
 

@@ -22,7 +22,7 @@ while true; do
     root-shell 'Administrator shell — authenticated root shell with unrestricted system control' \
     verify 'Verify installed build — hashes, runtime, services, greeter, recovery, sandbox' \
     repair 'Repair current checkout — rebuild/reinstall the current verified FORGE + FORGE-OS source' \
-    update 'Update + reinstall — checkpoint current system, fast-forward trusted main, install new build' \
+    update 'Update + reinstall — checkpoint current system, build current checkouts, install new build' \
     system-rollback 'Roll back system checkpoint — restore pre-update runtime + greetd/session/service configuration' \
     runtime-rollback 'Switch runtime only — toggle verified current/last-known-good FORGE runtime' \
     console 'Console recovery — disable graphical login and boot to text mode' \
@@ -59,7 +59,7 @@ while true; do
         continue
       fi
       kdialog --title 'Update and reinstall' --warningyesno \
-        'Save a hash-manifested checkpoint of the currently installed FORGE-OS integration, fast-forward the trusted FORGE/FORGE-OS main branches, and run the authoritative installer? Source checkouts are restored automatically if installation fails.' || continue
+        'Save a hash-manifested checkpoint of the currently installed FORGE-OS integration, then build and install the current local FORGE/FORGE-OS checkouts? Local edits and commits are preserved.' || continue
       open_terminal_action 'FORGE Update' "cd \"$repo\" && ./update.sh; status=\$?; printf '\\nUpdater exit status: %s\\n' \"\$status\"; exec fish"
       ;;
     system-rollback)
