@@ -52,13 +52,29 @@ install_reference_mirrors() {
 
 refresh_ranked_mirrors() {
   command -v reflector >/dev/null 2>&1 || return 0
-  local temporary
+  [[ "${FORGE_PRESERVE_MIRRORS:-0}" != 1 ]] || {
+    echo 'Preserving current mirrorlist by explicit request.'
+    return 0
+  }
+  local temporary reflector_timeout="${FORGE_REFLECTOR_TIMEOUT_SECONDS:-30}" status
+  [[ "$reflector_timeout" =~ ^[1-9][0-9]*$ ]] || {
+    echo 'Warning: FORGE_REFLECTOR_TIMEOUT_SECONDS is invalid; using 30 seconds.' >&2
+    reflector_timeout=30
+  }
   temporary="$(mktemp)"
-  if reflector --country 'United States' --age 24 --latest 30 --protocol https --sort rate --save "$temporary" && grep -q '^Server = https://' "$temporary"; then
+  if timeout --foreground "${reflector_timeout}s" reflector \
+    --connection-timeout 3 --download-timeout 3 --threads 8 \
+    --country 'United States' --age 24 --latest 30 --protocol https --sort rate --save "$temporary" \
+    && grep -q '^Server = https://' "$temporary"; then
     sudo install -o root -g root -m 0644 "$temporary" /etc/pacman.d/mirrorlist
     echo 'Ranked current U.S. HTTPS Arch mirrors with reflector.'
   else
-    echo 'Warning: reflector refresh failed; retaining the tracked mirror baseline.' >&2
+    status=$?
+    if [[ "$status" -eq 124 ]]; then
+      echo "Warning: reflector refresh timed out after ${reflector_timeout}s; retaining the current mirrorlist." >&2
+    else
+      echo 'Warning: reflector refresh failed; retaining the current mirrorlist.' >&2
+    fi
   fi
   rm -f -- "$temporary"
 }
