@@ -7,7 +7,6 @@ state_dir="$repository_root/build"
 mapfile -t overlays < <(find "$repository_root/overlays" -maxdepth 1 -type f -name '*.patch' -print | sort)
 [[ -d "$forge_source/.git" && -x "$forge_source/scripts/package-linux.sh" ]] || { echo "FORGE source/package script not found: $forge_source" >&2; exit 1; }
 [[ "$(node --version)" == v22.* ]] || { echo "FORGE requires Node 22; found $(node --version)." >&2; exit 1; }
-[[ -z "$(git -C "$forge_source" status --porcelain)" ]] || { echo 'FORGE source has uncommitted changes; git archive would omit them.' >&2; exit 1; }
 
 forge_os_version="$(<"$repository_root/VERSION")"
 forge_os_commit="$(git -C "$repository_root" rev-parse HEAD)"
@@ -16,12 +15,6 @@ forge_version="$(node -p "require(process.argv[1]).version" "$forge_source/packa
 
 mkdir -p "$state_dir"
 commit="$(git -C "$forge_source" rev-parse HEAD)"
-forge_ref="$(tr -d '[:space:]' < "$repository_root/FORGE_REF" 2>/dev/null || true)"
-[[ "$forge_ref" =~ ^[0-9a-f]{40}$ ]] || { echo "FORGE_REF is missing or invalid: $repository_root/FORGE_REF" >&2; exit 1; }
-[[ "$commit" == "$forge_ref" ]] || {
-  printf 'FORGE source HEAD does not match FORGE_REF.\n  HEAD: %s\n  REF:  %s\n' "$commit" "$forge_ref" >&2
-  exit 1
-}
 lock_sha="$(sha256sum "$forge_source/package-lock.json" | awk '{print $1}')"
 package_sha="$(sha256sum "$forge_source/package.json" | awk '{print $1}')"
 runtime_source_sha="$($repository_root/scripts/runtime-source-hash.sh "$forge_source")"
@@ -36,6 +29,17 @@ staging="$(mktemp -d "$state_dir/forge-source.XXXXXX")"
 cleanup() { rm -rf -- "$staging"; }
 trap cleanup EXIT
 git -C "$forge_source" archive "$commit" | tar --warning=no-timestamp -x -C "$staging"
+# Build the source currently present on this machine. The commit is retained
+# as provenance, but it is not a build prerequisite: tracked edits and
+# non-ignored untracked files are layered onto the clean archive before the
+# FORGE-OS overlays are applied.
+if ! git -C "$forge_source" diff --quiet HEAD --; then
+  git -C "$forge_source" diff --binary HEAD -- | patch --batch --forward --fuzz=0 -d "$staging" -p1
+fi
+while IFS= read -r -d '' relative; do
+  mkdir -p "$staging/$(dirname "$relative")"
+  cp -a "$forge_source/$relative" "$staging/$relative"
+done < <(git -C "$forge_source" ls-files --others --exclude-standard -z)
 for overlay in "${overlays[@]}"; do
   relative="${overlay#"$repository_root/"}"
   echo "Checking FORGE-OS overlay: $relative"
@@ -90,4 +94,4 @@ FORGE_PAYLOAD_SHA256=$payload_sha
 FORGE_RUNTIME_ID=$runtime_id
 EOF
 mv "$state_dir/latest.env.tmp" "$state_dir/latest.env"
-echo "Built FORGE runtime $runtime_id from FORGE $commit; app.asar SHA-256 $app_asar_sha"
+echo "Built FORGE runtime $runtime_id from the local FORGE worktree at $commit; app.asar SHA-256 $app_asar_sha"

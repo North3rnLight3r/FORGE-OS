@@ -141,7 +141,7 @@ grep -Fq '[Colors:Selection]' "$root/config/kdeglobals" && grep -Fq 'DecorationF
 
 [[ "$(tr -d '[:space:]' < "$root/VERSION")" == '2.5.0-beta' ]] && pass 'current VERSION is the 2.5.0 beta release' || fail 'FORGE-OS VERSION is not 2.5.0-beta'
 forge_ref="$(tr -d '[:space:]' < "$root/FORGE_REF" 2>/dev/null || true)"
-[[ "$forge_ref" =~ ^[0-9a-f]{40}$ ]] && [[ "$(git -C "$forge_source" rev-parse HEAD 2>/dev/null)" == "$forge_ref" ]] && pass 'FORGE_REF pins the exact verified FORGE checkout' || fail 'FORGE_REF does not match the verified FORGE checkout'
+[[ "$forge_ref" =~ ^[0-9a-f]{40}$ ]] && pass 'FORGE_REF provenance record is valid (not a local build/install gate)' || fail 'FORGE_REF provenance record is invalid'
 grep -Fq "tags: ['v2.5.0-beta']" "$root/.github/workflows/release.yml" && grep -Fq 'gh release create v2.5.0-beta' "$root/.github/workflows/release.yml" && grep -Fq -- '--prerelease' "$root/.github/workflows/release.yml" && grep -Fq 'find FORGE-OS/build/iso' "$root/.github/workflows/release.yml" && pass '2.5.0 beta publication is exact-tag gated' || fail '2.5.0 beta publication gate is incomplete'
 
 duplicates="$(sed -e 's/#.*$//' -e '/^[[:space:]]*$/d' "$root/manifests/arch-packages.txt" | sort | uniq -d)"

@@ -48,7 +48,7 @@ cd ~/FORGE-OS
 ./update.sh
 ```
 
-checks both trusted repositories, temporarily preserves local `.obsidian` UI state, creates a root-owned pre-update FORGE-OS system checkpoint, fast-forwards `main`, verifies that `FORGE_REF` pins the exact sibling FORGE commit, and runs the authoritative installer. Source checkouts and local `.obsidian` state are restored if installation fails. It refuses source edits outside `.obsidian`, untrusted origins, non-`main` branches, and divergent history.
+refreshes available remotes on a best-effort basis, temporarily preserves local `.obsidian` UI state, creates a root-owned pre-update FORGE-OS system checkpoint, optionally fast-forwards when possible, and runs the authoritative installer against the current local source. Local branches, commits, working-tree edits, unavailable remotes, and divergent history do not block installation; source checkouts are left in their current local state if installation fails.
 
 ## Packages, mirrors, and services
 
@@ -138,7 +138,7 @@ The ISO reports both versions (`/etc/forge-os-version` and the bundled FORGE run
 
 FORGE-OS installs `config/forge-hermes.env` as `/usr/share/forge-os/forge-hermes.env` and sources it before the Wayland session starts. By default it selects the Hermes runtime through the Ollama OpenAI-compatible endpoint `http://127.0.0.1:11434/v1` and uses `llama3.2:3b`; set `FORGE_OLLAMA_MODEL` or `FORGE_HERMES_MODEL` in the session environment to choose another installed Ollama model. Native FORGE and Hermes remain interchangeable, and FORGE's shared context, intelligence layer, ToolRouter, workspace scope, policy checks, audit trail, and cancellation remain authoritative; no external Hermes process receives direct filesystem or shell access.
 
-The pinned `FORGE_REF` is a full FORGE commit SHA. `build-forge.sh`, the installer, the ISO builder, and `tests/hermes-runtime-contract.sh` all verify that exact source and package the shared bridge directly. The updater safely re-attaches a detached checkout only when it is exactly at that checkout's local `main` commit; it also verifies that the pinned FORGE source is the fetched `FORGE origin/main` before changing either checkout.
+`FORGE_REF` remains release/CI provenance for the shared FORGE checkout; it is not required to match a local machine's FORGE commit. `build-forge.sh` and the installer use the current local FORGE worktree, including tracked edits and non-ignored untracked files, while recording the current commit only as provenance. The updater accepts detached, dirty, and divergent checkouts and never resets them to force commit parity.
 
 The source workflow pins the FORGE checkout through `FORGE_REF`, builds canonical tuigreet 0.11.0, validates greeter/setup/maintenance contracts, verifies that provider schemas omit runtime-only tool metadata, and then runs the complete FORGE typecheck, lint, tests, production build, package resolution, shell/TOML/unit checks, and source contract. The pinned shared runtime applies the same tool schema, policy, and audit behavior to FORGE-OS/Linux, macOS, and Windows packages.
 

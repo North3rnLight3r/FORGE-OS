@@ -7,36 +7,9 @@ forge_repository="${FORGE_SOURCE_DIR:-$HOME/FORGE}"
 os_repository="${FORGE_OS_SOURCE_DIR:-$HOME/FORGE-OS}"
 
 repositories=("$forge_repository" "$os_repository")
-expected_origins=(
-  'https://github.com/North3rnLight3r/FORGE'
-  'https://github.com/North3rnLight3r/FORGE-OS'
-)
 
-attach_main_if_safe() {
-  local repository="$1" current head main_head
-  current="$(git -C "$repository" branch --show-current)"
-  [[ "$current" == main ]] && return 0
-  [[ -z "$current" ]] || return 1
-  head="$(git -C "$repository" rev-parse HEAD)"
-  main_head="$(git -C "$repository" rev-parse refs/heads/main 2>/dev/null || true)"
-  [[ -n "$main_head" && "$head" == "$main_head" ]] || return 1
-  git -C "$repository" switch main >/dev/null
-}
-
-for index in "${!repositories[@]}"; do
-  repository="${repositories[$index]}"
+for repository in "${repositories[@]}"; do
   [[ -d "$repository/.git" ]] || { echo "Required Git checkout is missing: $repository" >&2; exit 66; }
-  if ! attach_main_if_safe "$repository"; then
-    echo "Update checkout must be on main (or safely attached to its local main commit): $repository" >&2
-    exit 65
-  fi
-  [[ "$(git -C "$repository" branch --show-current)" == main ]] || { echo "Update checkout must be on main: $repository" >&2; exit 65; }
-  [[ -z "$(git -C "$repository" status --porcelain -- . ':(exclude).obsidian/**')" ]] || { echo "Update checkout has source changes outside .obsidian: $repository" >&2; exit 65; }
-  origin="$(git -C "$repository" config --get remote.origin.url)"
-  [[ "${origin%.git}" == "${expected_origins[$index]}" ]] || {
-    echo "Update checkout has an untrusted origin: $repository ($origin)" >&2
-    exit 65
-  }
 done
 
 forge_before="$(git -C "$forge_repository" rev-parse HEAD)"
@@ -65,15 +38,10 @@ drop_obsidian_stashes() {
   done
 }
 
-rollback_sources=true
 restore_sources_on_failure() {
   local status=$?
   trap - EXIT
-  if [[ "$rollback_sources" == true ]]; then
-    echo 'Update failed; restoring both clean source checkouts to their pre-update commits.' >&2
-    git -C "$forge_repository" reset --hard "$forge_before" >/dev/null
-    git -C "$os_repository" reset --hard "$os_before" >/dev/null
-  fi
+  echo 'Update failed; leaving both source checkouts at their current local state.' >&2
   if apply_obsidian_stashes; then
     drop_obsidian_stashes
   else
@@ -83,30 +51,12 @@ restore_sources_on_failure() {
 }
 trap restore_sources_on_failure EXIT
 
-echo 'Checking the trusted FORGE and FORGE-OS origins...'
-git -C "$forge_repository" fetch --prune origin main
-git -C "$os_repository" fetch --prune origin main
-
+echo 'Refreshing available source checkouts; local branches, commits, and edits are accepted.'
 for repository in "${repositories[@]}"; do
-  git -C "$repository" merge-base --is-ancestor HEAD origin/main || {
-    echo "Local history has diverged from origin/main: $repository" >&2
-    exit 65
-  }
+  if ! git -C "$repository" fetch --prune origin main; then
+    echo "Warning: unable to refresh origin/main for $repository; installing the current local source." >&2
+  fi
 done
-
-# FORGE-OS must update as a coordinated pair. A repository can be clean and
-# current relative to its own origin while still pointing at a different
-# FORGE source commit. Refuse that state before checkpointing or changing
-# either checkout so the failure explains the real synchronization problem.
-forge_target="$(git -C "$forge_repository" rev-parse origin/main)"
-forge_ref=''
-if [[ -r "$os_repository/FORGE_REF" ]]; then
-  forge_ref="$(tr -d '[:space:]' < "$os_repository/FORGE_REF")"
-fi
-if [[ -n "$forge_ref" && "$forge_ref" != "$forge_target" ]]; then
-  echo "Coordinated FORGE update is unavailable: FORGE-OS FORGE_REF is $forge_ref but FORGE origin/main is $forge_target. Push a FORGE-OS commit that pins the new FORGE source before retrying." >&2
-  exit 65
-fi
 
 # Save the complete currently installed FORGE-owned integration layer before
 # changing either source tree. Prefer the installed root-owned helper; use bash
@@ -121,15 +71,19 @@ else
   exit 69
 fi
 
-git -C "$forge_repository" merge --ff-only origin/main
-git -C "$os_repository" merge --ff-only origin/main
+for repository in "${repositories[@]}"; do
+  if git -C "$repository" show-ref --verify --quiet refs/remotes/origin/main; then
+    if ! git -C "$repository" merge --ff-only origin/main; then
+      echo "Warning: $repository is not fast-forwardable from origin/main; installing its current local source." >&2
+    fi
+  fi
+done
 
 echo 'Installing the verified FORGE-OS update...'
 "$os_repository/scripts/install-forge-linux.sh"
 
 apply_obsidian_stashes
 drop_obsidian_stashes
-rollback_sources=false
 trap - EXIT
 
 echo

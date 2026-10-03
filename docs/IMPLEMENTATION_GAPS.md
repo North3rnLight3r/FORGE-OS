@@ -14,7 +14,7 @@
 1. Run an unskipped bootstrap/install on a disposable clean Arch target and verify every manifest package, unit, desktop default, Fish shell, optional-skill behavior, and installed hash.
 2. Boot the generated ISO in a VM and on reference hardware. Validate one KWin owner, GPU rendering, XWayland, NetworkManager, PipeWire, portals, external-window focus, suspend/resume, logout/relogin, on-demand tty2 recovery, and rollback.
 3. Produce Windows and macOS packages on native runners and establish platform-specific runtime evidence.
-4. Establish signing keys/certificates and a signed stable binary/OS update feed. The current FORGE-OS updater intentionally remains a trusted-clean-source workflow.
-5. Exercise updater/rollback cases on an installed disposable target, including wrong manifest/hash, interrupted activation, unavailable last-known-good, and repeat update after rollback. Source transaction tests already cover dirty, divergent, untrusted, failed-install rollback, and clean fast-forward behavior.
+4. Establish signing keys/certificates and a signed stable binary/OS update feed. The current FORGE-OS updater installs the current local source and retains artifact/hash verification.
+5. Exercise updater/rollback cases on an installed disposable target, including wrong manifest/hash, interrupted activation, unavailable last-known-good, and repeat update after rollback. Source transaction tests cover dirty, divergent, unavailable-origin, detached, failed-install state preservation, and local-source installation behavior.
 
 No source-only check can replace physical, native-runner, signing, and remote publication gates.

@@ -18,32 +18,13 @@ target_home="$(getent passwd "$target_user" | cut -d: -f6)"
 [[ -n "$target_home" && -d "$target_home" && "$target_user" != root ]] || { echo "Invalid desktop user: $target_user" >&2; exit 1; }
 forge_source="${FORGE_SOURCE:-$target_home/FORGE}"
 
-require_current_main() {
-  local repository="$1" label="$2" local_head remote_head
+require_git_checkout() {
+  local repository="$1" label="$2"
   [[ -d "$repository/.git" ]] || { echo "$label is not a Git repository: $repository" >&2; exit 1; }
-  [[ "$(git -C "$repository" branch --show-current)" == main ]] || { echo "$label must be on main for a production install." >&2; exit 1; }
-  [[ -z "$(git -C "$repository" status --porcelain)" ]] || { echo "$label has uncommitted changes; refusing to package a dirty tree." >&2; exit 1; }
-  git -C "$repository" fetch --quiet origin main || { echo "Unable to refresh origin/main for $label." >&2; exit 1; }
-  local_head="$(git -C "$repository" rev-parse HEAD)"
-  remote_head="$(git -C "$repository" rev-parse origin/main)"
-  [[ "$local_head" == "$remote_head" ]] || {
-    printf '%s is not current with origin/main.\n  local:  %s\n  remote: %s\n' "$label" "$local_head" "$remote_head" >&2
-    echo "Run: git -C '$repository' pull --ff-only" >&2
-    exit 1
-  }
-  printf '%s current at %s\n' "$label" "$local_head"
 }
 
-require_current_main "$root" FORGE-OS
-require_current_main "$forge_source" FORGE
-
-forge_ref="$(tr -d '[:space:]' < "$root/FORGE_REF" 2>/dev/null || true)"
-forge_head="$(git -C "$forge_source" rev-parse HEAD)"
-[[ "$forge_ref" =~ ^[0-9a-f]{40}$ ]] || { echo "FORGE_REF is missing or invalid: $root/FORGE_REF" >&2; exit 1; }
-[[ "$forge_head" == "$forge_ref" ]] || {
-  printf 'FORGE source HEAD does not match FORGE_REF.\n  HEAD: %s\n  REF:  %s\n' "$forge_head" "$forge_ref" >&2
-  exit 1
-}
+require_git_checkout "$root" FORGE-OS
+require_git_checkout "$forge_source" FORGE
 
 # These are intentional installer stages, not obsolete duplicate entry points.
 if [[ "$skip_packages" == false ]]; then

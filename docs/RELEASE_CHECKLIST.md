@@ -4,7 +4,7 @@ A stable tag is allowed only when every applicable item is evidenced. Source suc
 
 ## Source and version
 
-- [ ] FORGE and FORGE-OS are clean, intentional, on `main`, and synchronized with trusted origins.
+- [ ] FORGE and FORGE-OS contain the intentional source for the release; branch, working-tree, and remote state are recorded separately from release provenance.
 - [ ] `VERSION`, all FORGE-owned package manifests/lock entries, release notes, changelog, and current docs name the next deliberate build/version.
 - [ ] No credentials, local databases, build directories, machine logs, stale scripts, or redundant current docs are tracked.
 - [ ] `./tests/source-verify.sh` passes after the final source change.
@@ -17,7 +17,7 @@ A stable tag is allowed only when every applicable item is evidenced. Source suc
 - [ ] Installed apps use normal backend paths and appear in FORGE Applications without relogin.
 - [ ] Fish is the account shell and the Dr460nized-inspired Fish/Starship theme loads.
 - [ ] Final immutable runtime hashes match the build record and installed payload; sandbox is root:root `4755`.
-- [ ] Update refusal cases (dirty, divergent, untrusted, wrong branch/hash), failed-install source rollback, and one clean fast-forward update pass.
+- [ ] Update acceptance cases (dirty, divergent, unavailable-origin, detached, and fast-forwardable local checkouts), failed-install state preservation, and one local-source install pass.
 - [ ] Last-known-good rollback passes, removes only the superseded runtime, and a subsequent update does not conflict.
 
 ## Login, desktop, and recovery

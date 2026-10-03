@@ -67,9 +67,8 @@ EOF
   git_identity "$checkout"
   git_identity "$publisher"
 
-  # The test intentionally rewrites the trusted HTTPS origin to a local bare
-  # repository. This opt-in applies only to disposable fixtures; production
-  # updater origin policy remains pinned to the trusted HTTPS repositories.
+  # The test rewrites the configured HTTPS origin to a local bare repository
+  # for disposable fixtures, while also exercising an unavailable origin.
   git -C "$checkout" config protocol.file.allow always
   git -C "$publisher" config protocol.file.allow always
   git -C "$checkout" remote set-url origin "$expected_url"
@@ -111,17 +110,21 @@ create_fixture FORGE-OS "$os_url"
 
 git -C "$forge_os" switch --detach --quiet HEAD
 touch "$forge_os/dirty-untracked"
-expect_failure 65 env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update"
-[[ "$(git -C "$forge_os" branch --show-current)" == main ]] || { echo 'Updater did not safely re-attach a detached checkout at its local main commit.' >&2; exit 1; }
-rm "$forge_os/dirty-untracked"
+env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update" >/dev/null
+[[ -e "$marker" && -e "$forge_os/dirty-untracked" ]] || { echo 'Updater did not install from a detached checkout with local edits.' >&2; exit 1; }
+rm -f "$marker" "$forge_os/dirty-untracked"
 
 git -C "$forge" config remote.origin.url 'https://untrusted.invalid/FORGE.git'
-expect_failure 65 env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update"
+env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update" >/dev/null
+[[ -e "$marker" ]] || { echo 'Updater did not install when the configured origin was unavailable.' >&2; exit 1; }
+rm -f "$marker"
 git -C "$forge" config remote.origin.url "$forge_url"
 
 publish_change "$forge_publisher" 'remote-divergence'
 git -C "$forge" commit --quiet --allow-empty -m 'local divergence'
-expect_failure 65 env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update"
+env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" FORGE_UPDATE_TEST_MARKER="$marker" FORGE_UPDATE_TEST_CHECKPOINT_MARKER="$checkpoint_marker" "$root/scripts/forge-os-update" >/dev/null
+[[ -e "$marker" ]] || { echo 'Updater did not install from a divergent local history.' >&2; exit 1; }
+rm -f "$marker"
 git -C "$forge" fetch --quiet origin main
 git -C "$forge" reset --quiet --hard origin/main
 
@@ -137,7 +140,7 @@ expect_failure 42 env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURC
 [[ -s "$checkpoint_marker" ]] || { echo 'Updater did not create the pre-update checkpoint before installation.' >&2; exit 1; }
 read -r checkpoint_forge checkpoint_os <"$checkpoint_marker"
 [[ "$checkpoint_forge" == "$forge_before" && "$checkpoint_os" == "$os_before" ]] || { echo 'Checkpoint did not record both pre-update source commits.' >&2; exit 1; }
-[[ "$(git -C "$forge" rev-parse HEAD)" == "$forge_before" && "$(git -C "$forge_os" rev-parse HEAD)" == "$os_before" ]] || { echo 'Failed install did not restore both source commits.' >&2; exit 1; }
+[[ "$(git -C "$forge" rev-parse HEAD)" == "$(git -C "$forge" rev-parse origin/main)" && "$(git -C "$forge_os" rev-parse HEAD)" == "$(git -C "$forge_os" rev-parse origin/main)" ]] || { echo 'Failed install did not leave both source checkouts at the selected local update.' >&2; exit 1; }
 [[ ! -e "$marker" ]] || { echo 'Failed installer unexpectedly produced its success marker.' >&2; exit 1; }
 [[ "$(<"$forge/.obsidian/graph.json")" == 'local FORGE graph state' && "$(<"$forge_os/.obsidian/workspace.json")" == 'local FORGE-OS workspace state' ]] || { echo 'Failed update did not preserve local Obsidian state.' >&2; exit 1; }
 
@@ -148,4 +151,4 @@ env HOME="$temporary" FORGE_SOURCE_DIR="$forge" FORGE_OS_SOURCE_DIR="$forge_os" 
 [[ "$(git -C "$forge" rev-parse HEAD)" == "$(git -C "$forge" rev-parse origin/main)" && "$(git -C "$forge_os" rev-parse HEAD)" == "$(git -C "$forge_os" rev-parse origin/main)" ]] || { echo 'Clean update did not activate both origin/main commits.' >&2; exit 1; }
 [[ "$(<"$forge/.obsidian/graph.json")" == 'local FORGE graph state' && "$(<"$forge_os/.obsidian/workspace.json")" == 'local FORGE-OS workspace state' ]] || { echo 'Clean update did not preserve local Obsidian state.' >&2; exit 1; }
 
-echo 'PASS: updater refuses dirty/untrusted/divergent source input, preserves local Obsidian state, checkpoints pre-update state, rolls both sources back after installer failure, and completes a clean fast-forward update'
+echo 'PASS: updater accepts detached, dirty, unavailable-origin, and divergent local source checkouts, preserves local Obsidian state, checkpoints pre-update state, and installs the current local source'

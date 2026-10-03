@@ -29,9 +29,9 @@ The production profile no longer depends on an experimental X11-first path. Reco
 ## FORGE runtime ownership
 
 - FORGE and FORGE-OS are sibling repositories.
-- `FORGE_REF` pins the exact FORGE commit expected by the OS integration layer.
+- `FORGE_REF` records release/CI provenance; local build and install paths do not require a matching FORGE commit.
 - Installation builds/installs a content-addressed FORGE runtime and maintains current/last-known-good switching.
-- Update flow verifies trusted origins, `main`, clean source state outside approved local UI state, and pinned FORGE parity before reinstalling.
+- Update flow refreshes configured remotes on a best-effort basis, optionally fast-forwards, and reinstalls from the current local source without branch, dirty-tree, or commit-parity gates.
 - Pre-update checkpoints cover the FORGE-owned system integration layer without treating user projects or package databases as rollback payloads.
 
 ## Desktop shell and settings
@@ -113,7 +113,7 @@ Feature-specific validation should also include the Flatpak/application discover
 
 When documentation disagrees, use this precedence:
 
-1. Current source/tests on `main` and the exact `FORGE_REF` pin.
+1. Current source/tests and the release/CI provenance pin when a release artifact is being verified.
 2. This document plus `README.md`, `ARCHITECTURE.md`, and `BUILD_STATE.md`.
 3. Active user/install/recovery/security documentation under `docs/`.
 4. Changelog and development notes as historical chronology.
